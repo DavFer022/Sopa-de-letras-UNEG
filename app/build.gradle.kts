@@ -56,7 +56,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.socket.io.client)
     implementation(libs.androidx.navigation.compose)
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
