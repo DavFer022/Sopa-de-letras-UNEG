@@ -21,7 +21,7 @@ fun HomeScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(onClick = { navController.navigate(AppScreens.GameScreen.route) }) {
+        Button(onClick = { navController.navigate(AppScreens.SinglePlayerGameScreen.route) }) {
             Text(text = "Jugar")
         }
         Spacer(modifier = Modifier.height(16.dp))
