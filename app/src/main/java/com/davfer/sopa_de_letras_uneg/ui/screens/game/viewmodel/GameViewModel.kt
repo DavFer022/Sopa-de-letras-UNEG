@@ -2,10 +2,16 @@ package com.davfer.sopa_de_letras_uneg.ui.screens.game.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.davfer.sopa_de_letras_uneg.datos.network.SocketManager
 import com.davfer.sopa_de_letras_uneg.dominio.logica.BoardGenerator
-import com.davfer.sopa_de_letras_uneg.dominio.models.*
+import com.davfer.sopa_de_letras_uneg.dominio.models.Coordenada
+import com.davfer.sopa_de_letras_uneg.dominio.models.EstadosJuego
+import com.davfer.sopa_de_letras_uneg.dominio.models.GameStatus
+import com.davfer.sopa_de_letras_uneg.dominio.models.Jugador
+import com.davfer.sopa_de_letras_uneg.dominio.models.Palabra
+import com.davfer.sopa_de_letras_uneg.dominio.models.Tablero
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,12 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 import kotlin.math.abs
 import kotlin.math.max
-
-import androidx.lifecycle.ViewModelProvider
 
 class GameViewModel(
     // Parametros para multijugador (opcionales)
