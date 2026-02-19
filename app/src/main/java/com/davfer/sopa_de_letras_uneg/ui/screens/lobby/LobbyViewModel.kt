@@ -17,14 +17,11 @@ class LobbyViewModel : ViewModel() {
     // Estado para navegar al juego cuando el servidor lo diga
     private val _navigateToGame = MutableStateFlow<String?>(null) // String es el JSON del juego
     val navigateToGame = _navigateToGame.asStateFlow()
-
     private val _players = MutableStateFlow<List<Jugador>>(emptyList())
     val players = _players.asStateFlow()
-
     // Agrega un estado para guardar el código de sala generado
     private val _generatedRoomId = MutableStateFlow("")
     val generatedRoomId = _generatedRoomId.asStateFlow()
-
     // Estados para mantener el ID de la sala actual y el ID del jugador local
     var currentRoomId: String? = null
         private set
