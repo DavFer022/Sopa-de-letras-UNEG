@@ -1,10 +1,9 @@
-package com.davfer.sopa_de_letras_uneg.ui.screens.game
+package com.davfer.sopa_de_letras_uneg.ui.screens.results
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -13,22 +12,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.davfer.sopa_de_letras_uneg.ui.navegacion.AppScreens
 
 @Composable
-fun RoleSelectionScreen(onRoleSelected: (Boolean) -> Unit) {
+fun ResultScreen(navController: NavController, winner: String?) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Selecciona tu rol", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "¡Juego Terminado!", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Ganador: ${winner ?: "Nadie"}", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { onRoleSelected(true) }, modifier = Modifier.fillMaxWidth(0.7f)) {
-            Text("Crear Sala (Host)")
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = { onRoleSelected(false) }, modifier = Modifier.fillMaxWidth(0.7f)) {
-            Text("Unirse a Sala (Cliente)")
+        Button(onClick = {
+            navController.navigate(AppScreens.HomeScreen.route) {
+                popUpTo(AppScreens.HomeScreen.route) {
+                    inclusive = true
+                }
+            }
+        }) {
+            Text(text = "Volver al Inicio")
         }
     }
 }

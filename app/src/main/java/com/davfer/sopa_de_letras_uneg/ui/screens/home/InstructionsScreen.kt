@@ -1,4 +1,4 @@
-package com.davfer.sopa_de_letras_uneg.ui.screens.game
+package com.davfer.sopa_de_letras_uneg.ui.screens.home
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer

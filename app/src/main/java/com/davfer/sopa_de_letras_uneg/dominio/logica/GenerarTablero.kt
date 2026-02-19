@@ -117,9 +117,9 @@ enum class Direction(val dRow: Int, val dCol: Int) {
     HORIZONTAL(0, 1),
     VERTICAL(1, 0),
     DIAGONAL(1, 1), // Puedes agregar (-1, 1) para diagonal inversa, etc.
-    //HINVERSO(0,-1),
-    //VINVERSO(-1,0),
-    //DIAGONALINVERSO(-1,-1)
+    HINVERSO(0,-1),
+    VINVERSO(-1,0),
+    DIAGONALINVERSO(-1,-1)
 }
 
 
