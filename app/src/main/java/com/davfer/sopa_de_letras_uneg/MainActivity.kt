@@ -21,6 +21,7 @@ import com.davfer.sopa_de_letras_uneg.ui.screens.game.GameScreen
 import com.davfer.sopa_de_letras_uneg.ui.screens.game.InstructionsScreen
 import com.davfer.sopa_de_letras_uneg.ui.screens.game.RoleSelectionScreen
 import com.davfer.sopa_de_letras_uneg.ui.screens.game.viewmodel.GameViewModel
+import com.davfer.sopa_de_letras_uneg.ui.navegacion.AppNavigation
 import com.davfer.sopa_de_letras_uneg.ui.theme.Sopa_de_letras_UNEGTheme
 
 sealed class Screen(val route: String) {
@@ -36,6 +37,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Sopa_de_letras_UNEGTheme {
+               Scaffold(modifier = Modifier.fillMaxSize()) {innerPadding->
+                   AppNavigation( modifier = Modifier.padding(innerPadding))
+               }
                 val navController = rememberNavController()
 
                 NavHost(
@@ -76,18 +80,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Sopa_de_letras_UNEGTheme {
-        Greeting("Android")
-    }
-}
