@@ -23,7 +23,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     NavHost(navController = navController, startDestination = AppScreens.HomeScreen.route) {
         composable(route = AppScreens.HomeScreen.route) {
             HomeScreen(
-                onNavigateToJugar = { navController.navigate(AppScreens.RoleSelectionScreen.route) },
+                onNavigateToSolo = { navController.navigate(AppScreens.SinglePlayerGameScreen.route) },
+                onNavigateToMulti = { navController.navigate(AppScreens.RoleSelectionScreen.route) },
                 onNavigateToHowTo = { navController.navigate(AppScreens.InstructionsScreen.route) }
             )
         }
@@ -32,14 +33,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
         composable(route = AppScreens.RoleSelectionScreen.route) {
             RoleSelectionScreen(
-                onNavigateToGame = { isServer ->
-                    // For single player, navigate directly to SinglePlayerGameScreen
-                    if (!isServer) { // Assuming !isServer means single player
-                        navController.navigate(AppScreens.SinglePlayerGameScreen.route)
-                    } else {
-                        // For multiplayer, navigate to LobbyScreen or a dedicated multiplayer setup screen
-                        navController.navigate(AppScreens.LobbyScreen.route)
-                    }
+                onRoleSelected = { isHost ->
+                    navController.navigate(AppScreens.LobbyScreen.route.replace("{isHost}", isHost.toString()))
                 }
             )
         }
@@ -74,8 +69,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 navController.popBackStack()
             }
         }
-        composable(route = AppScreens.LobbyScreen.route) {
-            LobbyScreen(navController = navController)
+        composable(
+            route = AppScreens.LobbyScreen.route,
+            arguments = listOf(navArgument("isHost") { type = NavType.BoolType })
+        ) { backStackEntry ->
+            val isHost = backStackEntry.arguments?.getBoolean("isHost") ?: false
+            LobbyScreen(navController = navController, isHost = isHost)
         }
         composable(route = AppScreens.ResultScreen.route + "/{winner}") { backStackEntry ->
             val winner = backStackEntry.arguments?.getString("winner")

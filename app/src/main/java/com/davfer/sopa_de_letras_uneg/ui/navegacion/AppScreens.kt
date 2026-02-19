@@ -6,6 +6,6 @@ sealed class AppScreens(val route: String) {
     object RoleSelectionScreen : AppScreens("role_selection_screen")
     object SinglePlayerGameScreen : AppScreens("game_screen_single") // Ruta para un jugador
     object MultiplayerGameScreen : AppScreens("game_screen_multi/{initialGameStateJson}/{roomId}/{localPlayerId}") // Ruta para multijugador
-    object LobbyScreen : AppScreens("lobby_screen")
+    object LobbyScreen : AppScreens("lobby_screen/{isHost}")
     object ResultScreen : AppScreens("result_screen")
 }

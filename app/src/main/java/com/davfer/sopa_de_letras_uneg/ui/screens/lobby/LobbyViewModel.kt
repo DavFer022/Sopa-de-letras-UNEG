@@ -74,6 +74,8 @@ class LobbyViewModel : ViewModel() {
     fun onCreateRoomClicked(nickname: String) {
         if (nickname.isBlank()) return // Validación básica
         val newRoomId = UUID.randomUUID().toString().substring(0, 6).uppercase() // Generar un ID de sala simple
+        currentRoomId = newRoomId
+        _generatedRoomId.value = newRoomId
         val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF", isHost = true) // Host
         SocketManager.joinRoom(newRoomId, Json.encodeToString(player))
         Log.d("APP_DEBUG", "Sala creada: $newRoomId por $nickname")

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,22 +28,26 @@ import com.davfer.sopa_de_letras_uneg.ui.screens.game.viewmodel.GameViewModel
 import com.davfer.sopa_de_letras_uneg.ui.screens.lobby.LobbyViewModel
 
 @Composable
-fun LobbyScreen(navController: NavController, lobbyViewModel: LobbyViewModel = viewModel()) {
-    var roomCode by remember { mutableStateOf("") }
-    var nickname by remember { mutableStateOf("") } // Nuevo estado para el nickname
+fun LobbyScreen(
+    navController: NavController,
+    isHost: Boolean,
+    lobbyViewModel: LobbyViewModel = viewModel()
+) {
+    var roomCodeInput by remember { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
     val players by lobbyViewModel.players.collectAsState()
     val navigateToGame by lobbyViewModel.navigateToGame.collectAsState()
+    val generatedRoomId by lobbyViewModel.generatedRoomId.collectAsState()
 
     // Manejar la navegación cuando el juego comience
     LaunchedEffect(navigateToGame) {
         navigateToGame?.let { gameJson ->
-            // Reemplazar los placeholders en la ruta con los valores reales
             val route = AppScreens.MultiplayerGameScreen.route
                 .replace("{initialGameStateJson}", gameJson)
                 .replace("{roomId}", lobbyViewModel.currentRoomId ?: "")
                 .replace("{localPlayerId}", lobbyViewModel.localPlayerId)
             navController.navigate(route)
-            lobbyViewModel.onNavigationHandled() // Resetear el estado de navegación
+            lobbyViewModel.onNavigationHandled()
         }
     }
 
@@ -53,46 +58,81 @@ fun LobbyScreen(navController: NavController, lobbyViewModel: LobbyViewModel = v
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = if (isHost) "Configurar Sala" else "Unirse a Sala",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
         OutlinedTextField(
             value = nickname,
             onValueChange = { nickname = it },
             label = { Text("Tu Apodo") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = players.isEmpty() // Bloquear si ya se unió/creó
         )
-        Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                Log.d("LobbyScreen", "$nickname Intentando crear una sala: $roomCode")
-                lobbyViewModel.onCreateRoomClicked(nickname) },
-            enabled = nickname.isNotBlank()
-        ) {
-            Text(text = "Crear Sala")
+        if (isHost) {
+            if (generatedRoomId.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Código de la sala: $generatedRoomId",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (generatedRoomId.isEmpty()) {
+                Button(
+                    onClick = { lobbyViewModel.onCreateRoomClicked(nickname) },
+                    enabled = nickname.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Crear Sala")
+                }
+            } else {
+                Button(
+                    onClick = { lobbyViewModel.onStartGameClicked(generatedRoomId) },
+                    enabled = players.size >= 1, // Puedes exigir más jugadores si quieres
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Empezar Juego")
+                }
+            }
+        } else {
+            // CLIENTE
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = roomCodeInput,
+                onValueChange = { roomCodeInput = it },
+                label = { Text("Código de la sala") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = players.isEmpty()
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { lobbyViewModel.onJoinClicked(roomCodeInput, nickname) },
+                enabled = nickname.isNotBlank() && roomCodeInput.isNotBlank() && players.isEmpty(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Unirse")
+            }
+            
+            if (players.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Esperando a que el Host inicie...", style = MaterialTheme.typography.bodyMedium)
+            }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = roomCode,
-            onValueChange = { roomCode = it },
-            label = { Text("Código de la sala") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = {
-                Log.d("LobbyScreen", "Intentando unirse a la sala: $roomCode")
-                lobbyViewModel.onJoinClicked(roomCode, nickname) },
-            enabled = roomCode.isNotBlank() && nickname.isNotBlank()
-        ) {
-            Text(text = "Unirse a Sala")
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(text = "Jugadores en la sala (${players.size}):")
-        players.forEach { player ->
-            Text(text = "${player.nickname} (Puntaje: ${player.puntaje})")
+        if (players.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(text = "Jugadores en la sala (${players.size}):", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            players.forEach { player ->
+                Text(text = "• ${player.nickname} ${if (player.isHost) "(Host)" else ""}")
+            }
         }
     }
 }

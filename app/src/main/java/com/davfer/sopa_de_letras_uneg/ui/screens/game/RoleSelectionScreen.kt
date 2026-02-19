@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun RoleSelectionScreen(onNavigateToGame: (Boolean) -> Unit) {
+fun RoleSelectionScreen(onRoleSelected: (Boolean) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -23,11 +23,12 @@ fun RoleSelectionScreen(onNavigateToGame: (Boolean) -> Unit) {
     ) {
         Text(text = "Selecciona tu rol", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { onNavigateToGame(true) }, modifier = Modifier.fillMaxWidth(0.7f)) {
-            Text("Jugar como Servidor (Host)")
+        Button(onClick = { onRoleSelected(true) }, modifier = Modifier.fillMaxWidth(0.7f)) {
+            Text("Crear Sala (Host)")
         }
-        Button(onClick = { onNavigateToGame(false) }, modifier = Modifier.fillMaxWidth(0.7f)) {
-            Text("Jugar como Cliente (Unirse)")
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { onRoleSelected(false) }, modifier = Modifier.fillMaxWidth(0.7f)) {
+            Text("Unirse a Sala (Cliente)")
         }
     }
 }
