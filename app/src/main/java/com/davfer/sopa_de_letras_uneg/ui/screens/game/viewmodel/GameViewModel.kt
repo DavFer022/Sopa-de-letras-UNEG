@@ -19,9 +19,11 @@ import kotlinx.serialization.decodeFromString
 import kotlin.math.abs
 import kotlin.math.max
 
+import androidx.lifecycle.ViewModelProvider
+
 class GameViewModel(
     // Parametros para multijugador (opcionales)
-    initialGameStateJson: String? = null,
+    private val initialGameStateJson: String? = null,
     private val roomId: String? = null,
     private val localPlayerId: String? = null
 ) : ViewModel() {
@@ -41,6 +43,22 @@ class GameViewModel(
         } else {
             // --- MODO UN JUGADOR ---
             startSinglePlayerGame()
+        }
+    }
+
+    companion object {
+        fun provideFactory(
+            initialGameStateJson: String? = null,
+            roomId: String? = null,
+            localPlayerId: String? = null
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(GameViewModel::class.java)) {
+                    return GameViewModel(initialGameStateJson, roomId, localPlayerId) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
         }
     }
 
@@ -243,3 +261,4 @@ class GameViewModel(
         _uiState.update { it.copy(status = EstadosJuego.TERMINADO, ganador = winner) }
     }
 }
+
