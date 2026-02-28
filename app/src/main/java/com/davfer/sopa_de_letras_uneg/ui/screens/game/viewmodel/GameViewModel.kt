@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.davfer.sopa_de_letras_uneg.datos.network.SocketManager
+import com.davfer.sopa_de_letras_uneg.datos.repositorio.PalabrasRepository
 import com.davfer.sopa_de_letras_uneg.dominio.logica.BoardGenerator
 import com.davfer.sopa_de_letras_uneg.dominio.models.Coordenada
 import com.davfer.sopa_de_letras_uneg.dominio.models.EstadosJuego
@@ -68,17 +69,20 @@ class GameViewModel(
 
     private fun initializeMultiplayerGame(gameStateJson: String) {
         try {
-            val initialBoard = Json.decodeFromString<Tablero>(gameStateJson)
-            _uiState.value = GameStatus(
-                roomID = roomId!!,
+            // 1. Decodificamos el ESTADO COMPLETO,
+            val serverState = Json.decodeFromString<GameStatus>(gameStateJson)
+            // 2. Aplicamos el estado directamente a la UI
+            // Asegúrate de copiar el status como JUGANDO si no viene así
+            _uiState.value = serverState.copy(
                 status = EstadosJuego.JUGANDO,
-                tablero = initialBoard,
-                listaPalabras = initialBoard.palabras
+                roomID = roomId ?: serverState.roomID // Priorizar el ID que viene de la ruta
             )
+            Log.d("GameViewModel", "Juego Multijugador iniciado con éxito. Turno de: ${serverState.turnoActual}")
+
             observeServerUpdates()
             startTimer()
         } catch (e: Exception) {
-            Log.e("GameViewModel", "Error al deserializar estado multijugador: ${e.message}")
+            Log.e("APP_DEBUG_GameViewModel", "Error al deserializar estado multijugador: ${e.message}")
             // Considerar un estado de error
         }
     }
@@ -86,7 +90,8 @@ class GameViewModel(
     private fun startSinglePlayerGame() {
         _uiState.value = GameStatus(status = EstadosJuego.CARGANDO)
         viewModelScope.launch {
-            val words = listOf("KOTLIN", "ANDROID", "COMPOSE", "SOCKET", "VIEWMODEL")
+            //val words = listOf("KOTLIN", "ANDROID", "COMPOSE", "SOCKET", "VIEWMODEL")
+            val words = PalabrasRepository.obtenerPalabrasAleatorias(5)
             val newBoard = generator.generateBoard(10, words)
             val localPlayer = Jugador(
                 id = "single_player",
@@ -109,7 +114,7 @@ class GameViewModel(
 
     // --- LÓGICA DE RED (MULTIJUGADOR) ---
 
-    private fun observeServerUpdates() {
+    /*private fun observeServerUpdates() {
         viewModelScope.launch {
             SocketManager.observeGameStateUpdates().collect { gameStateJson ->
                 try {
@@ -120,12 +125,46 @@ class GameViewModel(
                 }
             }
         }
+    }*/
+    private fun observeServerUpdates() {
+        viewModelScope.launch {
+            // Asegúrate que SocketManager escuche "game_updated"
+            SocketManager.observeGameStateUpdates().collect { gameStateJson ->
+                try {
+                    // Ahora decodificamos el OBJETO COMPLETO del juego, no solo el tablero
+                    // Necesitas crear una data class GameStateDTO que coincida con lo que manda Node
+                    val serverState = Json.decodeFromString<GameStatus>(gameStateJson)
+
+                    _uiState.update {
+                        it.copy(
+                            tablero = serverState.tablero,
+                            listaPalabras = serverState.listaPalabras, // Lista actualizada con encontrados
+                            jugadores = serverState.jugadores, // Puntajes actualizados
+                            turnoActual = serverState.turnoActual, // Nuevo turno
+                            seleccionActual = emptyList() // Limpiamos selección visual
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("GameViewModel", "Error sync: ${e.message}")
+                }
+            }
+        }
     }
 
     // --- LÓGICA DE INPUT (COMÚN) ---
 
     fun onInputStart(coordinate: Coordenada) {
+        // 1. Validar estado general
         if (_uiState.value.status != EstadosJuego.JUGANDO) return
+
+        // 2. NUEVO: Validar si es MI turno (Solo en Multiplayer)
+        if (roomId != null) {
+            val turnoActual = _uiState.value.turnoActual // Asegúrate que GameStatus tenga este campo
+            if (turnoActual != localPlayerId) {
+                Log.d("APP_DEBUG_GameViewModel", "No es tu turno. Turno de: $turnoActual")
+                return // <--- AQUÍ SE BLOQUEA EL TÁCTIL
+            }
+        }
         dragStartCoordinate = coordinate
         updateSelection(coordinate)
     }
@@ -142,15 +181,39 @@ class GameViewModel(
             return
         }
 
+        // Construir la palabra formada por la selección
+        val board = _uiState.value.tablero
+        val stringBuilder = StringBuilder()
+        currentSelection.forEach { coord ->
+            // Asegurarse de no salir del array
+            if(coord.fila < board.tamanno && coord.columna < board.tamanno){
+                stringBuilder.append(board.celdas[coord.fila][coord.columna].letra)
+            }
+        }
+        val wordFormed = stringBuilder.toString()
+
+        // Verificar si existe en la lista (Lógica Local rápida)
+        val validWord = _uiState.value.listaPalabras.find {
+            (it.texto == wordFormed || it.texto == wordFormed.reversed()) && !it.encontrada
+        }
+
         if (roomId != null) {
             // --- LÓGICA MULTIJUGADOR: Enviar al servidor ---
-            try {
+            if (validWord != null) {
+                // Si la palabra es válida, avisamos al servidor
+                // OJO: validWord.texto siempre debe enviarse en "derecho" (no invertido) si así está en tu DB
+                SocketManager.submitWord(roomId, validWord.texto, localPlayerId!!)
+            } else {
+                // Si seleccionó basura, simplemente limpiamos la selección
+                _uiState.update { it.copy(seleccionActual = emptyList()) }
+            }
+            /*try {
                 val selectionJson = Json.encodeToString(currentSelection)
                 SocketManager.submitWord(roomId, selectionJson, localPlayerId!!)
                 Log.d("GameViewModel", "Palabra seleccionada enviada al servidor.")
             } catch (e: Exception) {
                 Log.e("GameViewModel", "Error al serializar selección: ${e.message}")
-            }
+            }*/
         } else {
             // --- LÓGICA UN JUGADOR: Validar localmente ---
             validateWordLocally(currentSelection)

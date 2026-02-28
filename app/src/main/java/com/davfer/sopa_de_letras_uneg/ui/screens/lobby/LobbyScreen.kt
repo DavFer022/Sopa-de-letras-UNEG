@@ -1,4 +1,5 @@
 package com.davfer.sopa_de_letras_uneg.ui.screens.lobby
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,10 +43,19 @@ fun LobbyScreen(
     // Manejar la navegación cuando el juego comience
     LaunchedEffect(navigateToGame) {
         navigateToGame?.let { gameJson ->
-            val route = AppScreens.MultiplayerGameScreen.route
-                .replace("{initialGameStateJson}", gameJson)
-                .replace("{roomId}", lobbyViewModel.currentRoomId ?: "")
-                .replace("{localPlayerId}", lobbyViewModel.localPlayerId)
+            // 1. CODIFICAMOS el JSON para que sea seguro en la URL
+            val encodedJson = Uri.encode(gameJson)
+            // 2. Verificamos que los IDs no sean nulos
+            val roomId = lobbyViewModel.currentRoomId ?: ""
+            val playerId = lobbyViewModel.localPlayerId
+            // 3. Construimos la ruta
+            val route = "game_screen_multi/$encodedJson/$roomId/$playerId"
+
+           /* val route = AppScreens.MultiplayerGameScreen.route
+                .replace("{initialGameStateJson}", encodedJson)
+                .replace("{roomId}", roomId)
+                .replace("{localPlayerId}", playerId)*/
+            Log.d("APP_DEBUG", "Navegando a la ruta: $route")
             navController.navigate(route)
             lobbyViewModel.onNavigationHandled()
         }

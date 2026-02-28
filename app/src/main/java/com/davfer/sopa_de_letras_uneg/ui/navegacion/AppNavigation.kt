@@ -1,6 +1,7 @@
 package com.davfer.sopa_de_letras_uneg.ui.navegacion
 
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,7 +50,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 navArgument("localPlayerId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val initialGameStateJson = backStackEntry.arguments?.getString("initialGameStateJson")
+            val initialGameStateJson = backStackEntry.arguments?.getString("initialGameStateJson")//Uri.decode("initialGameStateJson")
             val roomId = backStackEntry.arguments?.getString("roomId")
             val localPlayerId = backStackEntry.arguments?.getString("localPlayerId")
 

@@ -27,9 +27,14 @@ object SocketManager {
     }
     fun isConnected(): Boolean = socket?.connected() ?: false
 
-    fun joinRoom(roomId: String, playerJson: String) {
+    fun joinRoom(
+        roomId: String,
+        playerJson: String,
+        nickname: String
+    ) {
         val data = JSONObject()
         data.put("roomId", roomId)
+        data.put("nickname", nickname)
         data.put("player", JSONObject(playerJson)) // Enviar el objeto Jugador serializado
         socket?.emit("join_room", data)
     }

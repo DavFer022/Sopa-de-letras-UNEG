@@ -9,5 +9,6 @@ data class Palabra (
     val texto : String,                     // El texto visible (ej: "ANDROID")
     val inicio: Coordenada,                 // Dónde empieza en el tablero
     val final: Coordenada,                  // Dónde termina
-    val encontradoPor: String? = null       // ID del jugador que la encontró (null si nadie la ha hallado)
+    val encontradoPor: String? = null,       // ID del jugador que la encontró (null si nadie la ha hallado)
+    val encontrada: Boolean = false
 )

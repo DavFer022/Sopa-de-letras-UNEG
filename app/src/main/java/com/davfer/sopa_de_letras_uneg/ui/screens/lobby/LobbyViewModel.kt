@@ -4,7 +4,10 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.davfer.sopa_de_letras_uneg.datos.network.SocketManager
+import com.davfer.sopa_de_letras_uneg.datos.repositorio.PalabrasRepository
 import com.davfer.sopa_de_letras_uneg.dominio.logica.BoardGenerator
+import com.davfer.sopa_de_letras_uneg.dominio.models.EstadosJuego
+import com.davfer.sopa_de_letras_uneg.dominio.models.GameStatus
 import com.davfer.sopa_de_letras_uneg.dominio.models.Jugador
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +44,21 @@ class LobbyViewModel : ViewModel() {
             }
         }
 
+        //Prueba
+        viewModelScope.launch {
+            SocketManager.observeGameStart().collect { gameJson ->
+                try {
+                    // Intenta decodificarlo AQUÍ antes de mandar a navegar.
+                    // Si esto falla, el Logcat te dirá exactamente qué campo falta.
+                    val test = Json.decodeFromString<GameStatus>(gameJson)
+                    Log.d("APP_DEBUG", "JSON Válido, navegando...")
+                    _navigateToGame.value = gameJson
+                } catch (e: Exception) {
+                    Log.e("APP_DEBUG", "El JSON que llegó es inválido: ${e.message}")
+                }
+            }
+        }
+
         viewModelScope.launch {
             SocketManager.observePlayers().collect { playersJson ->
                 // Parsear JSON a lista de objetos Player y actualizar UI
@@ -65,7 +83,7 @@ class LobbyViewModel : ViewModel() {
         // Verifica si el socket está conectado antes de enviar
         if (SocketManager.isConnected()) { // Tendrás que añadir esta función al Manager
             Log.d("APP_DEBUG", "Socket conectado. Enviando evento...")
-            SocketManager.joinRoom(roomId, Json.encodeToString(player))
+            SocketManager.joinRoom(roomId, Json.encodeToString(player), nickname)
         } else {
             Log.e("APP_DEBUG", "ERROR: El socket NO está conectado. El botón no hará nada.")
         }
@@ -77,22 +95,42 @@ class LobbyViewModel : ViewModel() {
         currentRoomId = newRoomId
         _generatedRoomId.value = newRoomId
         val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF", isHost = true) // Host
-        SocketManager.joinRoom(newRoomId, Json.encodeToString(player))
+        SocketManager.joinRoom(newRoomId, Json.encodeToString(player), nickname)
         Log.d("APP_DEBUG", "Sala creada: $newRoomId por $nickname")
     }
 
     fun onStartGameClicked(roomId: String) {
         // 1. Generamos el tablero
         val generator = BoardGenerator() // Tu clase generadora existente
-        val words = listOf("KOTLIN", "ANDROID", "SOCKET", "GAME") // O palabras al azar
+        val words = PalabrasRepository.obtenerPalabrasAleatorias(5)
         val newBoard = generator.generateBoard(10, words)
 
-        // 2. Serializamos
+        // 2. Obtenemos la lista actual de jugadores del Lobby
+        val currentPlayers = _players.value
+
+        // 3. ¡AQUÍ ESTÁ LA CLAVE!
+        // Creamos el objeto GameStatus COMPLETO, no solo el tablero.
+        val initialGameState = GameStatus(
+            roomID = roomId,
+            status = EstadosJuego.JUGANDO, // Ya lo marcamos como jugando
+            tablero = newBoard,
+            jugadores = currentPlayers,
+            listaPalabras = newBoard.palabras,
+            tiempo = 300, // Tiempo inicial
+            turnoActual = null // El servidor llenará esto, o puedes poner currentPlayers[0].id
+        )
+
+        // 4. Serializamos el ESTADO DEL JUEGO, no solo el tablero
+        val gameStateJson = Json.encodeToString(initialGameState)
+        // 5. Enviamos al servidor
+        Log.d("APP_DEBUG", "Iniciando juego con estado completo: $gameStateJson")
+        SocketManager.startGame(roomId, gameStateJson)
+/*        // 2. Serializamos
         val boardJson = Json.encodeToString(newBoard)
 
-        // 3. Enviamos al servidor
-        Log.d("APP_DEBUG", "Iniciando juego en sala $roomId...")
-        SocketManager.startGame(roomId, boardJson)
+     // 3. Enviamos al servidor
+       Log.d("APP_DEBUG", "Iniciando juego en sala $roomId...")
+        SocketManager.startGame(roomId, boardJson)*/
     }
 
     fun onNavigationHandled() {

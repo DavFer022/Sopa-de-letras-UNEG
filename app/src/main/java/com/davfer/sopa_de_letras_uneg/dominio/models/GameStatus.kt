@@ -1,5 +1,8 @@
 package com.davfer.sopa_de_letras_uneg.dominio.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class GameStatus(
     val roomID: String = "",                                                    // El ID de la sala
     val status: EstadosJuego = EstadosJuego.CARGANDO,                           // La bandera
@@ -8,7 +11,8 @@ data class GameStatus(
     val listaPalabras: List<Palabra> = emptyList(),                             //Lista de palabras a buscar
     val tiempo: Int = 300,                                                      // Tiempo en segundos
     val ganador: Jugador? = null,                                                // Nulo mientras se juega
-    val seleccionActual: List<Coordenada> = emptyList()                        // Lista de celdas seleccionadas
+    val seleccionActual: List<Coordenada> = emptyList(),                    // Lista de celdas seleccionadas
+    val turnoActual: String? = null                                         // ID del jugador actual
 )
 
 enum class EstadosJuego{ CARGANDO, JUGANDO, TERMINADO }
