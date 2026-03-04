@@ -17,6 +17,11 @@ import java.util.UUID
 
 class LobbyViewModel : ViewModel() {
 
+    private val json = Json {
+        encodeDefaults = true
+        ignoreUnknownKeys = true
+    }
+
     // Estado para navegar al juego cuando el servidor lo diga
     private val _navigateToGame = MutableStateFlow<String?>(null) // String es el JSON del juego
     val navigateToGame = _navigateToGame.asStateFlow()
@@ -37,24 +42,16 @@ class LobbyViewModel : ViewModel() {
     }
 
     private fun observeSocketEvents() {
-        viewModelScope.launch {
-            SocketManager.observeGameStart().collect { gameJson ->
-                // ¡El juego empezó! Navegar a la pantalla de juego pasando el JSON
-                _navigateToGame.value = gameJson
-            }
-        }
-
-        //Prueba
+        // Escuchar inicio de juego
         viewModelScope.launch {
             SocketManager.observeGameStart().collect { gameJson ->
                 try {
-                    // Intenta decodificarlo AQUÍ antes de mandar a navegar.
-                    // Si esto falla, el Logcat te dirá exactamente qué campo falta.
-                    val test = Json.decodeFromString<GameStatus>(gameJson)
-                    Log.d("APP_DEBUG", "JSON Válido, navegando...")
+                    // Validar JSON antes de navegar
+                    json.decodeFromString<GameStatus>(gameJson)
+                    Log.d("APP_DEBUG", "Juego iniciado. JSON válido recibido.")
                     _navigateToGame.value = gameJson
                 } catch (e: Exception) {
-                    Log.e("APP_DEBUG", "El JSON que llegó es inválido: ${e.message}")
+                    Log.e("APP_DEBUG", "Error al procesar inicio de juego: ${e.message}")
                 }
             }
         }
@@ -64,7 +61,7 @@ class LobbyViewModel : ViewModel() {
                 // Parsear JSON a lista de objetos Player y actualizar UI
                 try {
                     Log.d("APP_DEBUG", "¡Llegaron jugadores nuevos!")
-                    val decodedPlayers = Json.decodeFromString<List<Jugador>>(playersJson)
+                    val decodedPlayers = json.decodeFromString<List<Jugador>>(playersJson)
                     _players.value = decodedPlayers
                 } catch (e: Exception) {
                     Log.e("LobbyViewModel", "Error al deserializar jugadores: ${e.message}")
@@ -83,7 +80,7 @@ class LobbyViewModel : ViewModel() {
         // Verifica si el socket está conectado antes de enviar
         if (SocketManager.isConnected()) { // Tendrás que añadir esta función al Manager
             Log.d("APP_DEBUG", "Socket conectado. Enviando evento...")
-            SocketManager.joinRoom(roomId, Json.encodeToString(player), nickname)
+            SocketManager.joinRoom(roomId, json.encodeToString(player), nickname)
         } else {
             Log.e("APP_DEBUG", "ERROR: El socket NO está conectado. El botón no hará nada.")
         }
@@ -95,7 +92,7 @@ class LobbyViewModel : ViewModel() {
         currentRoomId = newRoomId
         _generatedRoomId.value = newRoomId
         val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF", isHost = true) // Host
-        SocketManager.joinRoom(newRoomId, Json.encodeToString(player), nickname)
+        SocketManager.joinRoom(newRoomId, json.encodeToString(player), nickname)
         Log.d("APP_DEBUG", "Sala creada: $newRoomId por $nickname")
     }
 
@@ -121,16 +118,10 @@ class LobbyViewModel : ViewModel() {
         )
 
         // 4. Serializamos el ESTADO DEL JUEGO, no solo el tablero
-        val gameStateJson = Json.encodeToString(initialGameState)
+        val gameStateJson = json.encodeToString(initialGameState)
         // 5. Enviamos al servidor
         Log.d("APP_DEBUG", "Iniciando juego con estado completo: $gameStateJson")
         SocketManager.startGame(roomId, gameStateJson)
-/*        // 2. Serializamos
-        val boardJson = Json.encodeToString(newBoard)
-
-     // 3. Enviamos al servidor
-       Log.d("APP_DEBUG", "Iniciando juego en sala $roomId...")
-        SocketManager.startGame(roomId, boardJson)*/
     }
 
     fun onNavigationHandled() {

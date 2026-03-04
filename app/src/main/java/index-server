@@ -1,0 +1,155 @@
+//Escrito en js para ejecutar el servidor con node.js
+
+const app = require("express")();
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
+
+let rooms = {}; // Guardará el estado de las salas
+
+io.on("connection", (socket) => {
+  console.log("Usuario conectado:", socket.id);
+
+  // 1. Crear o Unirse a una sala
+  socket.on("join_room", (data) => {
+    const { roomId, nickname, player } = data;
+    socket.join(roomId);
+
+    // Inicializar sala si no existe
+    if (!rooms[roomId]) {
+      rooms[roomId] = { players: [], gameState: null };
+    }
+
+    // Lógica para asignar color aleatorio
+    const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF"];
+    const randomColor = colors[rooms[roomId].players.length % colors.length];
+
+    // Lógica para saber si es Host (si es el primero en la lista, es Host)
+    const isFirstPlayer = rooms[roomId].players.length === 0;
+
+    // IMPORTANTE: Usamos el ID que viene de Android (UUID) si existe, sino el socket.id
+    const playerId = player?.id || socket.id;
+
+    const newPlayer = {
+      id: playerId,
+      nickname: nickname,
+      puntaje: 0,
+      colorHex: randomColor,
+      isHost: isFirstPlayer,
+    };
+
+    rooms[roomId].players.push(newPlayer);
+
+    // Avisar a todos
+    io.to(roomId).emit("update_players", JSON.stringify(rooms[roomId].players));
+    console.log(`${nickname} (${playerId}) entró a la sala ${roomId}`);
+  });
+
+  // 2. Iniciar juego (El anfitrión envía el tablero generado)
+  socket.on("start_game", ({ roomId, gameState }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    let parsedGameState = gameState;
+    if (typeof gameState === "string") {
+      try {
+        parsedGameState = JSON.parse(gameState);
+      } catch (err) {
+        console.error("Error parsing gameState JSON:", err);
+        return;
+      }
+    }
+
+    room.gameState = parsedGameState;
+    // Asignar el turno al ID del primer jugador (que ahora es el UUID de Android)
+    room.gameState.turnoActual = room.players[0].id;
+    
+    console.log(`Juego iniciado en sala ${roomId}. Turno de: ${room.gameState.turnoActual}`);
+
+    io.to(roomId).emit("game_started", JSON.stringify(room.gameState));
+  });
+
+  // 3. Validar Jugada (Sincronizado con submitWord de Android)
+  socket.on("submit_word", ({ roomId, playerId, wordText }) => {
+    const room = rooms[roomId];
+    if (!room || !room.gameState) return;
+
+    const game = room.gameState;
+
+    // 1. Validar Turno
+    if (game.turnoActual !== playerId) {
+      console.log(`Intento de jugada fuera de turno por ${playerId}`);
+      return;
+    }
+
+    // 2. Buscar palabra en la lista (Buscamos una que coincida y NO esté encontrada)
+    const palabraObj = game.listaPalabras.find((p) => p.texto === wordText && !p.encontrada);
+
+    if (palabraObj) {
+      palabraObj.encontrada = true;
+      palabraObj.encontradoPor = playerId;
+
+      // 3. ACTUALIZAR CELDAS DEL TABLERO
+      const { inicio, final } = palabraObj;
+      const dRow = final.fila - inicio.fila;
+      const dCol = final.columna - inicio.columna;
+      const steps = Math.max(Math.abs(dRow), Math.abs(dCol));
+      
+      const stepRow = steps === 0 ? 0 : dRow / steps;
+      const stepCol = steps === 0 ? 0 : dCol / steps;
+
+      for (let i = 0; i <= steps; i++) {
+        const r = Math.round(inicio.fila + (i * stepRow));
+        const c = Math.round(inicio.columna + (i * stepCol));
+        
+        if (game.tablero.celdas[r] && game.tablero.celdas[r][c]) {
+          game.tablero.celdas[r][c].isFound = true;
+          game.tablero.celdas[r][c].encontradoPorJugadorID = playerId;
+        }
+      }
+
+      // 4. Sumar Puntos (Longitud de la palabra)
+      const jugador = game.jugadores.find((j) => j.id === playerId);
+      if (jugador) {
+        if (typeof jugador.puntaje !== "number" || isNaN(jugador.puntaje)) {
+          jugador.puntaje = 0;
+        }
+        // PUNTOS DINÁMICOS: Longitud de la palabra encontrada
+        const puntosGanados = wordText.length;
+        jugador.puntaje += puntosGanados;
+        console.log(`${jugador.nickname} ganó ${puntosGanados} puntos. Total: ${jugador.puntaje}`);
+      }
+
+      // 5. VERIFICAR SI EL JUEGO TERMINÓ
+      const todasEncontradas = game.listaPalabras.every((p) => p.encontrada);
+
+      if (todasEncontradas) {
+        game.status = "TERMINADO";
+        
+        // Calcular ganador (el que tenga más puntaje)
+        let ganador = game.jugadores[0];
+        game.jugadores.forEach(j => {
+            if (j.puntaje > ganador.puntaje) {
+                ganador = j;
+            }
+        });
+        game.ganador = ganador;
+        console.log(`¡Juego Terminado! Ganador: ${ganador.nickname}`);
+      } else {
+        // Solo cambiamos el turno si el juego NO ha terminado
+        const currentIndex = game.jugadores.findIndex((j) => j.id === playerId);
+        const nextIndex = (currentIndex + 1) % game.jugadores.length;
+        game.turnoActual = game.jugadores[nextIndex].id;
+        game.status = "JUGANDO";
+      }
+
+      console.log(`Palabra "${wordText}" procesada. Estado: ${game.status}`);
+
+      // 6. ENVIAR ACTUALIZACIÓN
+      io.to(roomId).emit("game_state_update", JSON.stringify(game));
+    }
+  });
+});
+
+http.listen(3000, () => {
+  console.log("Servidor corriendo en puerto 3000");
+});

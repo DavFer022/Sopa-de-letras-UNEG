@@ -2,6 +2,7 @@ package com.davfer.sopa_de_letras_uneg.ui.navegacion
 
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,15 +52,19 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             )
         ) { backStackEntry ->
             val initialGameStateJson = backStackEntry.arguments?.getString("initialGameStateJson")//Uri.decode("initialGameStateJson")
+            // AÑADE ESTE LOG PARA DEPURAR:
+            Log.d("APP_DEBIG_NAV_DEBUG", "Lo que recibí de la ruta es: $initialGameStateJson")
             val roomId = backStackEntry.arguments?.getString("roomId")
             val localPlayerId = backStackEntry.arguments?.getString("localPlayerId")
 
             if (initialGameStateJson != null && roomId != null && localPlayerId != null) {
+                // Si usaste Uri.encode en el Lobby, usa Uri.decode aquí:
+                val decodedJson = Uri.decode(initialGameStateJson)
                 GameScreen(
                     navController = navController,
                     viewModel = viewModel(
                         factory = GameViewModel.provideFactory(
-                            initialGameStateJson = initialGameStateJson,
+                            initialGameStateJson = decodedJson,
                             roomId = roomId,
                             localPlayerId = localPlayerId
                         )
@@ -77,7 +82,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             val isHost = backStackEntry.arguments?.getBoolean("isHost") ?: false
             LobbyScreen(navController = navController, isHost = isHost)
         }
-        composable(route = AppScreens.ResultScreen.route + "/{winner}") { backStackEntry ->
+        composable(route = AppScreens.ResultScreen.route) { backStackEntry ->
             val winner = backStackEntry.arguments?.getString("winner")
             ResultScreen(navController = navController, winner = winner)
         }

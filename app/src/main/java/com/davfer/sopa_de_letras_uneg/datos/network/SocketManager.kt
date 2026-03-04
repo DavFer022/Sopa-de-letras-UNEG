@@ -75,10 +75,10 @@ object SocketManager {
     }
 
     // Enviar palabra seleccionada al servidor
-    fun submitWord(roomId: String, selectionJson: String, playerId: String) {
+    fun submitWord(roomId: String, wordText: String, playerId: String) {
         val data = JSONObject()
         data.put("roomId", roomId)
-        data.put("selection", org.json.JSONArray(selectionJson))
+        data.put("wordText", wordText)
         data.put("playerId", playerId)
         socket?.emit("submit_word", data)
     }
