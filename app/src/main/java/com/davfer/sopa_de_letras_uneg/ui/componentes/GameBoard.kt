@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
@@ -39,24 +40,28 @@ fun GameBoard(
     viewModel: GameViewModel,
     tablero: Tablero,
     selection: List<Coordenada>,
-    jugadores: List<Jugador>
+    jugadores: List<Jugador>,
+    turnoActualId: String?,
+    localPlayerId: String?,
+    censuraActiva: Boolean
 ) {
     var cellSize by remember { mutableFloatStateOf(0f) }
-
-    val selectionSet = remember(selection) { selection.toSet() }
+    val isMyTurn = turnoActualId == localPlayerId || localPlayerId == "single_player"
+    val showCensorship = censuraActiva && !isMyTurn
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f) // Asegura que el tablero sea cuadrado
+            .aspectRatio(1f)
             .background(Color.LightGray)
             .onGloballyPositioned {
                 cellSize = it.size.width.toFloat() / tablero.tamanno
             }
-            .pointerInput(tablero.tamanno, cellSize) {
-                if (cellSize == 0f) return@pointerInput // Evitar división por cero
+            .pointerInput(tablero.tamanno, cellSize, isMyTurn) {
+                if (cellSize == 0f || !isMyTurn) return@pointerInput 
 
                 detectDragGestures(
+// ... (mismo código de gestos)
                     onDragStart = { offset ->
                         val col = (offset.x / cellSize).toInt().coerceIn(0, tablero.tamanno - 1)
                         val row = (offset.y / cellSize).toInt().coerceIn(0, tablero.tamanno - 1)
@@ -73,24 +78,38 @@ fun GameBoard(
                 )
             }
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        // Tablero Real
+        Column(modifier = Modifier.fillMaxSize()) {
             tablero.celdas.forEach { rowList ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     rowList.forEach { celda ->
                         CellView(
                             modifier = Modifier.weight(1f),
                             celda = celda,
-                            isSelected = selectionSet.contains(celda.coordenada),
+                            isSelected = selection.contains(celda.coordenada),
                             jugadores = jugadores
                         )
                     }
                 }
+            }
+        }
+
+        // Overlay de Censura
+        if (showCensorship) {
+            val nicknameTurno = jugadores.find { it.id == turnoActualId }?.nickname ?: "otro jugador"
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.DarkGray.copy(alpha = 0.95f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Es el turno de\n$nicknameTurno",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.headlineMedium
+                )
             }
         }
     }

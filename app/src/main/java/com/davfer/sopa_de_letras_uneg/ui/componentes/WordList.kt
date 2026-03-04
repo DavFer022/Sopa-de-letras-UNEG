@@ -53,12 +53,20 @@ fun WordList(palabras: List<Palabra>) {
  * Muestra el temporizador del juego.
  */
 @Composable
-fun GameHeader(timeLeft: Int) {
-    val minutes = TimeUnit.SECONDS.toMinutes(timeLeft.toLong())
-    val seconds = timeLeft - TimeUnit.MINUTES.toSeconds(minutes)
-    Text(
-        text = String.format("%02d:%02d", minutes, seconds),
-        style = MaterialTheme.typography.headlineMedium,
-        color = MaterialTheme.colorScheme.primary
-    )
+fun GameHeader(timeLeftTotal: Int, timeLeftTurn: Int) {
+    val minutes = TimeUnit.SECONDS.toMinutes(timeLeftTotal.toLong())
+    val seconds = timeLeftTotal - TimeUnit.MINUTES.toSeconds(minutes)
+    
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = String.format("Tiempo Total: %02d:%02d", minutes, seconds),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
+        Text(
+            text = "Tiempo de Turno: ${timeLeftTurn}s",
+            style = MaterialTheme.typography.headlineMedium,
+            color = if (timeLeftTurn <= 3) Color.Red else MaterialTheme.colorScheme.primary
+        )
+    }
 }

@@ -30,6 +30,19 @@ class LobbyViewModel : ViewModel() {
     // Agrega un estado para guardar el código de sala generado
     private val _generatedRoomId = MutableStateFlow("")
     val generatedRoomId = _generatedRoomId.asStateFlow()
+
+    // --- NUEVAS CONFIGURACIONES DEL HOST ---
+    private val _tiempoPorTurno = MutableStateFlow(10) // Valor por defecto: 10s
+    val tiempoPorTurno = _tiempoPorTurno.asStateFlow()
+
+    private val _censuraActiva = MutableStateFlow(false) // Por defecto: desactivado
+    val censuraActiva = _censuraActiva.asStateFlow()
+
+    fun updateConfig(tiempo: Int, censura: Boolean) {
+        _tiempoPorTurno.value = tiempo
+        _censuraActiva.value = censura
+    }
+
     // Estados para mantener el ID de la sala actual y el ID del jugador local
     var currentRoomId: String? = null
         private set
@@ -114,7 +127,10 @@ class LobbyViewModel : ViewModel() {
             jugadores = currentPlayers,
             listaPalabras = newBoard.palabras,
             tiempo = 300, // Tiempo inicial
-            turnoActual = null // El servidor llenará esto, o puedes poner currentPlayers[0].id
+            turnoActual = null, // El servidor llenará esto, o puedes poner currentPlayers[0].id
+            tiempoPorTurno = _tiempoPorTurno.value,
+            tiempoRestanteTurno = _tiempoPorTurno.value,
+            censuraActiva = _censuraActiva.value
         )
 
         // 4. Serializamos el ESTADO DEL JUEGO, no solo el tablero

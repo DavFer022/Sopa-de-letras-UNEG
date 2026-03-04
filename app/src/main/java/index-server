@@ -6,6 +6,41 @@ const io = require("socket.io")(http);
 
 let rooms = {}; // Guardará el estado de las salas
 
+// Función para manejar el cronómetro del turno
+const startTurnTimer = (roomId) => {
+  const room = rooms[roomId];
+  if (!room || !room.gameState) return;
+
+  // Limpiar cualquier timer previo para evitar duplicados
+  if (room.timer) clearInterval(room.timer);
+
+  room.timer = setInterval(() => {
+    const game = room.gameState;
+    if (game.status !== "JUGANDO") {
+      clearInterval(room.timer);
+      return;
+    }
+
+    game.tiempoRestanteTurno--;
+
+    if (game.tiempoRestanteTurno <= 0) {
+      // El tiempo se acabó: pasar al siguiente jugador
+      const currentIndex = game.jugadores.findIndex((j) => j.id === game.turnoActual);
+      const nextIndex = (currentIndex + 1) % game.jugadores.length;
+      game.turnoActual = game.jugadores[nextIndex].id;
+      
+      // Reiniciar el contador para el nuevo jugador
+      game.tiempoRestanteTurno = game.tiempoPorTurno;
+      console.log(`Tiempo agotado para sala ${roomId}. Nuevo turno: ${game.turnoActual}`);
+      
+      io.to(roomId).emit("game_state_update", JSON.stringify(game));
+    } else {
+      // Enviamos actualización del tiempo cada segundo
+      io.to(roomId).emit("game_state_update", JSON.stringify(game));
+    }
+  }, 1000);
+};
+
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
@@ -16,7 +51,7 @@ io.on("connection", (socket) => {
 
     // Inicializar sala si no existe
     if (!rooms[roomId]) {
-      rooms[roomId] = { players: [], gameState: null };
+      rooms[roomId] = { players: [], gameState: null, timer: null };
     }
 
     // Lógica para asignar color aleatorio
@@ -60,12 +95,18 @@ io.on("connection", (socket) => {
     }
 
     room.gameState = parsedGameState;
-    // Asignar el turno al ID del primer jugador (que ahora es el UUID de Android)
+    // Asignar el turno al ID del primer jugador
     room.gameState.turnoActual = room.players[0].id;
+    
+    // Inicializar el cronómetro del turno con la configuración del Host
+    room.gameState.tiempoRestanteTurno = room.gameState.tiempoPorTurno;
     
     console.log(`Juego iniciado en sala ${roomId}. Turno de: ${room.gameState.turnoActual}`);
 
     io.to(roomId).emit("game_started", JSON.stringify(room.gameState));
+
+    // Iniciamos el cronómetro en el servidor
+    startTurnTimer(roomId);
   });
 
   // 3. Validar Jugada (Sincronizado con submitWord de Android)
@@ -81,7 +122,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // 2. Buscar palabra en la lista (Buscamos una que coincida y NO esté encontrada)
+    // 2. Buscar palabra en la lista
     const palabraObj = game.listaPalabras.find((p) => p.texto === wordText && !p.encontrada);
 
     if (palabraObj) {
@@ -113,10 +154,8 @@ io.on("connection", (socket) => {
         if (typeof jugador.puntaje !== "number" || isNaN(jugador.puntaje)) {
           jugador.puntaje = 0;
         }
-        // PUNTOS DINÁMICOS: Longitud de la palabra encontrada
         const puntosGanados = wordText.length;
         jugador.puntaje += puntosGanados;
-        console.log(`${jugador.nickname} ganó ${puntosGanados} puntos. Total: ${jugador.puntaje}`);
       }
 
       // 5. VERIFICAR SI EL JUEGO TERMINÓ
@@ -124,8 +163,8 @@ io.on("connection", (socket) => {
 
       if (todasEncontradas) {
         game.status = "TERMINADO";
+        if (room.timer) clearInterval(room.timer); // Detenemos el cronómetro
         
-        // Calcular ganador (el que tenga más puntaje)
         let ganador = game.jugadores[0];
         game.jugadores.forEach(j => {
             if (j.puntaje > ganador.puntaje) {
@@ -133,18 +172,17 @@ io.on("connection", (socket) => {
             }
         });
         game.ganador = ganador;
-        console.log(`¡Juego Terminado! Ganador: ${ganador.nickname}`);
       } else {
-        // Solo cambiamos el turno si el juego NO ha terminado
+        // Pasar turno
         const currentIndex = game.jugadores.findIndex((j) => j.id === playerId);
         const nextIndex = (currentIndex + 1) % game.jugadores.length;
         game.turnoActual = game.jugadores[nextIndex].id;
         game.status = "JUGANDO";
+
+        // REINICIAR CRONÓMETRO DE TURNO
+        game.tiempoRestanteTurno = game.tiempoPorTurno;
       }
 
-      console.log(`Palabra "${wordText}" procesada. Estado: ${game.status}`);
-
-      // 6. ENVIAR ACTUALIZACIÓN
       io.to(roomId).emit("game_state_update", JSON.stringify(game));
     }
   });

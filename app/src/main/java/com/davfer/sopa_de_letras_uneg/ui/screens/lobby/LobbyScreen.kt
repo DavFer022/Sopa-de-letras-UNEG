@@ -3,6 +3,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +43,10 @@ fun LobbyScreen(
     val navigateToGame by lobbyViewModel.navigateToGame.collectAsState()
     val generatedRoomId by lobbyViewModel.generatedRoomId.collectAsState()
 
+    // Estados de configuración
+    val tiempoPorTurno by lobbyViewModel.tiempoPorTurno.collectAsState()
+    val censuraActiva by lobbyViewModel.censuraActiva.collectAsState()
+
     // Manejar la navegación cuando el juego comience
     LaunchedEffect(navigateToGame) {
         navigateToGame?.let { gameJson ->
@@ -51,10 +58,6 @@ fun LobbyScreen(
             // 3. Construimos la ruta
             val route = "game_screen_multi/$encodedJson/$roomId/$playerId"
 
-           /* val route = AppScreens.MultiplayerGameScreen.route
-                .replace("{initialGameStateJson}", encodedJson)
-                .replace("{roomId}", roomId)
-                .replace("{localPlayerId}", playerId)*/
             Log.d("APP_DEBUG", "Navegando a la ruta: $route")
             navController.navigate(route)
             lobbyViewModel.onNavigationHandled()
@@ -90,6 +93,29 @@ fun LobbyScreen(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
+
+                // --- NUEVOS CONTROLES DEL HOST ---
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("Tiempo por turno: ${tiempoPorTurno}s", style = MaterialTheme.typography.bodyLarge)
+                Slider(
+                    value = tiempoPorTurno.toFloat(),
+                    onValueChange = { lobbyViewModel.updateConfig(it.toInt(), censuraActiva) },
+                    valueRange = 5f..30f,
+                    steps = 5,
+                    modifier = Modifier.fillMaxWidth(0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Ocultar tablero fuera de turno")
+                    Switch(
+                        checked = censuraActiva,
+                        onCheckedChange = { lobbyViewModel.updateConfig(tiempoPorTurno, it) }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

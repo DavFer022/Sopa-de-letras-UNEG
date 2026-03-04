@@ -27,7 +27,7 @@ import kotlin.math.max
 class GameViewModel(
     private val initialGameStateJson: String? = null,
     private val roomId: String? = null,
-    private val localPlayerId: String? = null
+    val localPlayerId: String? = null
 ) : ViewModel() {
 
     private val json = Json {

@@ -23,13 +23,19 @@ fun GameContent(viewModel: GameViewModel, uiState: GameStatus) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        GameHeader(timeLeft = uiState.tiempo)
+        GameHeader(
+            timeLeftTotal = uiState.tiempo,
+            timeLeftTurn = uiState.tiempoRestanteTurno
+        )
         Spacer(modifier = Modifier.height(16.dp))
         GameBoard(
             viewModel = viewModel,
             tablero = uiState.tablero,
             selection = uiState.seleccionActual,
-            jugadores = uiState.jugadores
+            jugadores = uiState.jugadores,
+            turnoActualId = uiState.turnoActual,
+            localPlayerId = viewModel.localPlayerId, // Necesitamos exponer este campo en el ViewModel
+            censuraActiva = uiState.censuraActiva
         )
         Spacer(modifier = Modifier.height(24.dp))
         WordList(palabras = uiState.listaPalabras)
