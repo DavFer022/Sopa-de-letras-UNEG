@@ -9,28 +9,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import com.davfer.sopa_de_letras_uneg.datos.repositorio.PalabrasRepository
 import com.davfer.sopa_de_letras_uneg.ui.navegacion.AppScreens
-import com.davfer.sopa_de_letras_uneg.ui.screens.game.viewmodel.GameViewModel
-import com.davfer.sopa_de_letras_uneg.ui.screens.lobby.LobbyViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LobbyScreen(
     navController: NavController,
@@ -46,35 +35,28 @@ fun LobbyScreen(
     // Estados de configuración
     val tiempoPorTurno by lobbyViewModel.tiempoPorTurno.collectAsState()
     val censuraActiva by lobbyViewModel.censuraActiva.collectAsState()
+    val tamannoTablero by lobbyViewModel.tamannoTablero.collectAsState()
+    val categoriaSeleccionada by lobbyViewModel.categoriaSeleccionada.collectAsState()
+    val cantidadPalabras by lobbyViewModel.cantidadPalabras.collectAsState()
 
-    // Manejar la navegación cuando el juego comience
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+
     LaunchedEffect(navigateToGame) {
         navigateToGame?.let { gameJson ->
-            // 1. CODIFICAMOS el JSON para que sea seguro en la URL
             val encodedJson = Uri.encode(gameJson)
-            // 2. Verificamos que los IDs no sean nulos
             val roomId = lobbyViewModel.currentRoomId ?: ""
             val playerId = lobbyViewModel.localPlayerId
-            // 3. Construimos la ruta
-            val route = "game_screen_multi/$encodedJson/$roomId/$playerId"
-
-            Log.d("APP_DEBUG", "Navegando a la ruta: $route")
-            navController.navigate(route)
+            navController.navigate("game_screen_multi/$encodedJson/$roomId/$playerId")
             lobbyViewModel.onNavigationHandled()
         }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = if (isHost) "Configurar Sala" else "Unirse a Sala",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text(text = if (isHost) "Configurar Sala" else "Unirse a Sala", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
@@ -82,93 +64,104 @@ fun LobbyScreen(
             onValueChange = { nickname = it },
             label = { Text("Tu Apodo") },
             modifier = Modifier.fillMaxWidth(),
-            enabled = players.isEmpty() // Bloquear si ya se unió/creó
+            enabled = players.isEmpty()
         )
 
-        if (isHost) {
-            if (generatedRoomId.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Código de la sala: $generatedRoomId",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary
+        if (isHost && generatedRoomId.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Código: $generatedRoomId", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            
+            // --- PERSONALIZACIÓN ---
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Categoría
+            ExposedDropdownMenuBox(
+                expanded = isDropdownExpanded,
+                onExpandedChange = { isDropdownExpanded = !isDropdownExpanded }
+            ) {
+                OutlinedTextField(
+                    value = categoriaSeleccionada,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Categoría") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
-
-                // --- NUEVOS CONTROLES DEL HOST ---
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Tiempo por turno: ${tiempoPorTurno}s", style = MaterialTheme.typography.bodyLarge)
-                Slider(
-                    value = tiempoPorTurno.toFloat(),
-                    onValueChange = { lobbyViewModel.updateConfig(it.toInt(), censuraActiva) },
-                    valueRange = 5f..30f,
-                    steps = 5,
-                    modifier = Modifier.fillMaxWidth(0.8f)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ExposedDropdownMenu(
+                    expanded = isDropdownExpanded,
+                    onDismissRequest = { isDropdownExpanded = false }
                 ) {
-                    Text("Ocultar tablero fuera de turno")
-                    Switch(
-                        checked = censuraActiva,
-                        onCheckedChange = { lobbyViewModel.updateConfig(tiempoPorTurno, it) }
-                    )
+                    PalabrasRepository.obtenerCategorias().forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text(cat) },
+                            onClick = {
+                                lobbyViewModel.updateConfig(tiempoPorTurno, censuraActiva, tamannoTablero, cat, cantidadPalabras)
+                                isDropdownExpanded = false
+                            }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Tamaño del Tablero
+            Text("Tamaño del tablero: ${tamannoTablero}x${tamannoTablero}", style = MaterialTheme.typography.bodyMedium)
+            Slider(
+                value = tamannoTablero.toFloat(),
+                onValueChange = { 
+                    val newSize = it.toInt()
+                    val maxWords = (newSize - 3).coerceAtLeast(3)
+                    lobbyViewModel.updateConfig(tiempoPorTurno, censuraActiva, newSize, categoriaSeleccionada, cantidadPalabras.coerceAtMost(maxWords))
+                },
+                valueRange = 8f..15f,
+                steps = 7
+            )
 
+            // Cantidad de Palabras
+            Text("Cantidad de palabras: $cantidadPalabras", style = MaterialTheme.typography.bodyMedium)
+            Slider(
+                value = cantidadPalabras.toFloat(),
+                onValueChange = { lobbyViewModel.updateConfig(tiempoPorTurno, censuraActiva, tamannoTablero, categoriaSeleccionada, it.toInt()) },
+                valueRange = 3f..(tamannoTablero - 3).toFloat().coerceAtLeast(3f),
+                steps = (tamannoTablero - 6).coerceAtLeast(0)
+            )
+
+            // Tiempo por turno
+            Text("Tiempo por turno: ${tiempoPorTurno}s", style = MaterialTheme.typography.bodyMedium)
+            Slider(
+                value = tiempoPorTurno.toFloat(),
+                onValueChange = { lobbyViewModel.updateConfig(it.toInt(), censuraActiva, tamannoTablero, categoriaSeleccionada, cantidadPalabras) },
+                valueRange = 5f..30f,
+                steps = 5
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Ocultar tablero fuera de turno")
+                Switch(checked = censuraActiva, onCheckedChange = { lobbyViewModel.updateConfig(tiempoPorTurno, it, tamannoTablero, categoriaSeleccionada, cantidadPalabras) })
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (isHost) {
             if (generatedRoomId.isEmpty()) {
-                Button(
-                    onClick = { lobbyViewModel.onCreateRoomClicked(nickname) },
-                    enabled = nickname.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Crear Sala")
-                }
+                Button(onClick = { lobbyViewModel.onCreateRoomClicked(nickname) }, enabled = nickname.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Crear Sala") }
             } else {
-                Button(
-                    onClick = { lobbyViewModel.onStartGameClicked(generatedRoomId) },
-                    enabled = players.size >= 1, // Puedes exigir más jugadores si quieres
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Empezar Juego")
-                }
+                Button(onClick = { lobbyViewModel.onStartGameClicked(generatedRoomId) }, enabled = players.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Empezar Juego") }
             }
         } else {
-            // CLIENTE
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = roomCodeInput,
-                onValueChange = { roomCodeInput = it },
-                label = { Text("Código de la sala") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = players.isEmpty()
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = { lobbyViewModel.onJoinClicked(roomCodeInput, nickname) },
-                enabled = nickname.isNotBlank() && roomCodeInput.isNotBlank() && players.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Unirse")
-            }
-            
-            if (players.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Esperando a que el Host inicie...", style = MaterialTheme.typography.bodyMedium)
+            if (players.isEmpty()) {
+                OutlinedTextField(value = roomCodeInput, onValueChange = { roomCodeInput = it }, label = { Text("Código de sala") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { lobbyViewModel.onJoinClicked(roomCodeInput, nickname) }, enabled = nickname.isNotBlank() && roomCodeInput.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Unirse") }
+            } else {
+                Text(text = "Esperando al Host...", style = MaterialTheme.typography.bodyMedium)
             }
         }
 
         if (players.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(text = "Jugadores en la sala (${players.size}):", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            players.forEach { player ->
-                Text(text = "• ${player.nickname} ${if (player.isHost) "(Host)" else ""}")
-            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(text = "Jugadores (${players.size}):", style = MaterialTheme.typography.titleMedium)
+            players.forEach { Text("• ${it.nickname} ${if (it.isHost) "(Host)" else ""}") }
         }
     }
 }

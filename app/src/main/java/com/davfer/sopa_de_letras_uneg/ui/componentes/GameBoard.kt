@@ -43,7 +43,8 @@ fun GameBoard(
     jugadores: List<Jugador>,
     turnoActualId: String?,
     localPlayerId: String?,
-    censuraActiva: Boolean
+    censuraActiva: Boolean,
+    revelarRespuestas: Boolean
 ) {
     var cellSize by remember { mutableFloatStateOf(0f) }
     val isMyTurn = turnoActualId == localPlayerId || localPlayerId == "single_player"
@@ -61,7 +62,6 @@ fun GameBoard(
                 if (cellSize == 0f || !isMyTurn) return@pointerInput 
 
                 detectDragGestures(
-// ... (mismo código de gestos)
                     onDragStart = { offset ->
                         val col = (offset.x / cellSize).toInt().coerceIn(0, tablero.tamanno - 1)
                         val row = (offset.y / cellSize).toInt().coerceIn(0, tablero.tamanno - 1)
@@ -87,7 +87,8 @@ fun GameBoard(
                             modifier = Modifier.weight(1f),
                             celda = celda,
                             isSelected = selection.contains(celda.coordenada),
-                            jugadores = jugadores
+                            jugadores = jugadores,
+                            revelarRespuestas = revelarRespuestas
                         )
                     }
                 }
@@ -123,12 +124,13 @@ fun CellView(
     modifier: Modifier = Modifier,
     celda: Celda,
     isSelected: Boolean,
-    jugadores: List<Jugador>
+    jugadores: List<Jugador>,
+    revelarRespuestas: Boolean = false
 ) {
     val backgroundColor = when {
         celda.isFound -> {
             val player = jugadores.find { it.id == celda.encontradoPorJugadorID }
-            val colorString = player?.colorHex ?: "#CCCCCC" // Gris por defecto
+            val colorString = player?.colorHex ?: "#CCCCCC"
             try {
                 Color(colorString.toColorInt()).copy(alpha = 0.6f)
             } catch (e: IllegalArgumentException) {
@@ -139,6 +141,9 @@ fun CellView(
         else -> MaterialTheme.colorScheme.surface
     }
 
+    // Lógica Académica: Si se revela, ocultar letras que no son parte de palabras
+    val letraAMostrar = if (revelarRespuestas && !celda.isPartOfWord) "" else celda.letra.toString()
+
     Box(
         modifier = modifier
             .fillMaxHeight()
@@ -148,7 +153,7 @@ fun CellView(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = celda.letra.toString(),
+            text = letraAMostrar,
             fontSize = 18.sp,
             color = MaterialTheme.colorScheme.onSurface
         )

@@ -22,28 +22,37 @@ class LobbyViewModel : ViewModel() {
         ignoreUnknownKeys = true
     }
 
-    // Estado para navegar al juego cuando el servidor lo diga
-    private val _navigateToGame = MutableStateFlow<String?>(null) // String es el JSON del juego
+    private val _navigateToGame = MutableStateFlow<String?>(null)
     val navigateToGame = _navigateToGame.asStateFlow()
     private val _players = MutableStateFlow<List<Jugador>>(emptyList())
     val players = _players.asStateFlow()
-    // Agrega un estado para guardar el código de sala generado
     private val _generatedRoomId = MutableStateFlow("")
     val generatedRoomId = _generatedRoomId.asStateFlow()
 
-    // --- NUEVAS CONFIGURACIONES DEL HOST ---
-    private val _tiempoPorTurno = MutableStateFlow(10) // Valor por defecto: 10s
+    // --- CONFIGURACIONES DEL HOST ---
+    private val _tiempoPorTurno = MutableStateFlow(10)
     val tiempoPorTurno = _tiempoPorTurno.asStateFlow()
 
-    private val _censuraActiva = MutableStateFlow(false) // Por defecto: desactivado
+    private val _censuraActiva = MutableStateFlow(false)
     val censuraActiva = _censuraActiva.asStateFlow()
 
-    fun updateConfig(tiempo: Int, censura: Boolean) {
+    private val _tamannoTablero = MutableStateFlow(10)
+    val tamannoTablero = _tamannoTablero.asStateFlow()
+
+    private val _categoriaSeleccionada = MutableStateFlow("INFORMATICA")
+    val categoriaSeleccionada = _categoriaSeleccionada.asStateFlow()
+
+    private val _cantidadPalabras = MutableStateFlow(5)
+    val cantidadPalabras = _cantidadPalabras.asStateFlow()
+
+    fun updateConfig(tiempo: Int, censura: Boolean, tamanno: Int, categoria: String, cantidad: Int) {
         _tiempoPorTurno.value = tiempo
         _censuraActiva.value = censura
+        _tamannoTablero.value = tamanno
+        _categoriaSeleccionada.value = categoria
+        _cantidadPalabras.value = cantidad
     }
 
-    // Estados para mantener el ID de la sala actual y el ID del jugador local
     var currentRoomId: String? = null
         private set
     var localPlayerId: String = UUID.randomUUID().toString()
@@ -55,13 +64,10 @@ class LobbyViewModel : ViewModel() {
     }
 
     private fun observeSocketEvents() {
-        // Escuchar inicio de juego
         viewModelScope.launch {
             SocketManager.observeGameStart().collect { gameJson ->
                 try {
-                    // Validar JSON antes de navegar
                     json.decodeFromString<GameStatus>(gameJson)
-                    Log.d("APP_DEBUG", "Juego iniciado. JSON válido recibido.")
                     _navigateToGame.value = gameJson
                 } catch (e: Exception) {
                     Log.e("APP_DEBUG", "Error al procesar inicio de juego: ${e.message}")
@@ -71,9 +77,7 @@ class LobbyViewModel : ViewModel() {
 
         viewModelScope.launch {
             SocketManager.observePlayers().collect { playersJson ->
-                // Parsear JSON a lista de objetos Player y actualizar UI
                 try {
-                    Log.d("APP_DEBUG", "¡Llegaron jugadores nuevos!")
                     val decodedPlayers = json.decodeFromString<List<Jugador>>(playersJson)
                     _players.value = decodedPlayers
                 } catch (e: Exception) {
@@ -85,59 +89,54 @@ class LobbyViewModel : ViewModel() {
 
     fun onJoinClicked(roomId: String, nickname: String) {
         currentRoomId = roomId
-        Log.d("APP_DEBUG", "Intentando unirse a sala: $roomId con nombre: $nickname")
-
-        val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF") // Color temporal
-
-
-        // Verifica si el socket está conectado antes de enviar
-        if (SocketManager.isConnected()) { // Tendrás que añadir esta función al Manager
-            Log.d("APP_DEBUG", "Socket conectado. Enviando evento...")
+        val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF")
+        if (SocketManager.isConnected()) {
             SocketManager.joinRoom(roomId, json.encodeToString(player), nickname)
         } else {
-            Log.e("APP_DEBUG", "ERROR: El socket NO está conectado. El botón no hará nada.")
+            Log.e("APP_DEBUG", "Cliente no conectado. Reintentando...")
+            SocketManager.connect()
         }
     }
 
     fun onCreateRoomClicked(nickname: String) {
-        if (nickname.isBlank()) return // Validación básica
-        val newRoomId = UUID.randomUUID().toString().substring(0, 6).uppercase() // Generar un ID de sala simple
+        if (nickname.isBlank()) return
+
+        if (!SocketManager.isConnected()) {
+            Log.e("APP_DEBUG", "Host no conectado al socket. Reintentando conexión...")
+            SocketManager.connect()
+            // No retornamos, socket.io encolará el evento si la conexión se establece rápido, 
+            // pero es mejor avisar al usuario.
+            return 
+        }
+
+        val newRoomId = UUID.randomUUID().toString().substring(0, 6).uppercase()
         currentRoomId = newRoomId
         _generatedRoomId.value = newRoomId
-        val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF", isHost = true) // Host
+        val player = Jugador(id = localPlayerId, nickname = nickname, colorHex = "#FFFFFF", isHost = true)
         SocketManager.joinRoom(newRoomId, json.encodeToString(player), nickname)
-        Log.d("APP_DEBUG", "Sala creada: $newRoomId por $nickname")
+        Log.d("APP_DEBUG", "Sala creada por Host: $newRoomId")
     }
 
     fun onStartGameClicked(roomId: String) {
-        // 1. Generamos el tablero
-        val generator = BoardGenerator() // Tu clase generadora existente
-        val words = PalabrasRepository.obtenerPalabrasAleatorias(5)
-        val newBoard = generator.generateBoard(10, words)
+        val generator = BoardGenerator()
+        val words = PalabrasRepository.obtenerPalabrasPorCategoria(_categoriaSeleccionada.value, _cantidadPalabras.value)
+        val newBoard = generator.generateBoard(_tamannoTablero.value, words)
 
-        // 2. Obtenemos la lista actual de jugadores del Lobby
-        val currentPlayers = _players.value
-
-        // 3. ¡AQUÍ ESTÁ LA CLAVE!
-        // Creamos el objeto GameStatus COMPLETO, no solo el tablero.
         val initialGameState = GameStatus(
             roomID = roomId,
-            status = EstadosJuego.JUGANDO, // Ya lo marcamos como jugando
+            status = EstadosJuego.JUGANDO,
             tablero = newBoard,
-            jugadores = currentPlayers,
+            jugadores = _players.value,
             listaPalabras = newBoard.palabras,
-            tiempo = 300, // Tiempo inicial
-            turnoActual = null, // El servidor llenará esto, o puedes poner currentPlayers[0].id
+            tiempo = 300,
+            turnoActual = null,
             tiempoPorTurno = _tiempoPorTurno.value,
             tiempoRestanteTurno = _tiempoPorTurno.value,
-            censuraActiva = _censuraActiva.value
+            censuraActiva = _censuraActiva.value,
+            categoria = _categoriaSeleccionada.value
         )
 
-        // 4. Serializamos el ESTADO DEL JUEGO, no solo el tablero
-        val gameStateJson = json.encodeToString(initialGameState)
-        // 5. Enviamos al servidor
-        Log.d("APP_DEBUG", "Iniciando juego con estado completo: $gameStateJson")
-        SocketManager.startGame(roomId, gameStateJson)
+        SocketManager.startGame(roomId, json.encodeToString(initialGameState))
     }
 
     fun onNavigationHandled() {

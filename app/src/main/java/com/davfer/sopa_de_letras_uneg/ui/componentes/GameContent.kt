@@ -35,7 +35,8 @@ fun GameContent(viewModel: GameViewModel, uiState: GameStatus) {
             jugadores = uiState.jugadores,
             turnoActualId = uiState.turnoActual,
             localPlayerId = viewModel.localPlayerId, // Necesitamos exponer este campo en el ViewModel
-            censuraActiva = uiState.censuraActiva
+            censuraActiva = uiState.censuraActiva,
+            revelarRespuestas = uiState.revelarRespuestas
         )
         Spacer(modifier = Modifier.height(24.dp))
         WordList(palabras = uiState.listaPalabras)

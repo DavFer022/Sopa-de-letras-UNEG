@@ -85,7 +85,7 @@ class GameViewModel(
     private fun startSinglePlayerGame() {
         _uiState.value = GameStatus(status = EstadosJuego.CARGANDO)
         viewModelScope.launch {
-            val words = PalabrasRepository.obtenerPalabrasAleatorias(5)
+            val words = PalabrasRepository.obtenerPalabrasPorCategoria("INFORMATICA", 5)
             val newBoard = generator.generateBoard(10, words)
             val localPlayer = Jugador(
                 id = "single_player",
@@ -119,8 +119,11 @@ class GameViewModel(
                             jugadores = serverState.jugadores,
                             turnoActual = serverState.turnoActual,
                             status = serverState.status,
-                            ganador = serverState.ganador, // Sincronizar el ganador para la pantalla final
-                            seleccionActual = emptyList()
+                            ganador = serverState.ganador,
+                            revelarRespuestas = serverState.revelarRespuestas,
+                            isEmpate = serverState.isEmpate,
+                            seleccionActual = emptyList(),
+                            tiempoRestanteTurno = serverState.tiempoRestanteTurno
                         )
                     }
                 } catch (e: Exception) {
@@ -179,6 +182,15 @@ class GameViewModel(
 
         dragStartCoordinate = null
         _uiState.update { it.copy(seleccionActual = emptyList()) }
+    }
+
+    fun onRevealToggleClicked() {
+        if (roomId != null) {
+            SocketManager.toggleReveal(roomId)
+        } else {
+            // Lógica local para un jugador
+            _uiState.update { it.copy(revelarRespuestas = !it.revelarRespuestas) }
+        }
     }
 
     private fun validateWordLocally(selection: List<Coordenada>) {

@@ -163,17 +163,32 @@ io.on("connection", (socket) => {
 
       if (todasEncontradas) {
         game.status = "TERMINADO";
-        if (room.timer) clearInterval(room.timer); // Detenemos el cronómetro
-        
-        let ganador = game.jugadores[0];
+        if (room.timer) clearInterval(room.timer);
+
+        // Lógica de Ganador / Empate
+        let maxPuntaje = -1;
+        let posiblesGanadores = [];
+
         game.jugadores.forEach(j => {
-            if (j.puntaje > ganador.puntaje) {
-                ganador = j;
-            }
+          if (j.puntaje > maxPuntaje) {
+            maxPuntaje = j.puntaje;
+            posiblesGanadores = [j];
+          } else if (j.puntaje === maxPuntaje) {
+            posiblesGanadores.push(j);
+          }
         });
-        game.ganador = ganador;
+
+        if (posiblesGanadores.length > 1) {
+          game.isEmpate = true;
+          game.ganador = null;
+          console.log(`¡Empate entre ${posiblesGanadores.length} jugadores!`);
+        } else {
+          game.isEmpate = false;
+          game.ganador = posiblesGanadores[0];
+          console.log(`¡Juego Terminado! Ganador: ${game.ganador.nickname}`);
+        }
       } else {
-        // Pasar turno
+// ... (mismo código intermedio)
         const currentIndex = game.jugadores.findIndex((j) => j.id === playerId);
         const nextIndex = (currentIndex + 1) % game.jugadores.length;
         game.turnoActual = game.jugadores[nextIndex].id;
@@ -186,8 +201,19 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("game_state_update", JSON.stringify(game));
     }
   });
+
+  // 4. Revelar Respuestas (Modo Académico)
+  socket.on("toggle_reveal", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || !room.gameState) return;
+
+    room.gameState.revelarRespuestas = !room.gameState.revelarRespuestas;
+    console.log(`Modo Revelar en sala ${roomId}: ${room.gameState.revelarRespuestas}`);
+    
+    io.to(roomId).emit("game_state_update", JSON.stringify(room.gameState));
+  });
 });
 
-http.listen(3000, () => {
-  console.log("Servidor corriendo en puerto 3000");
+http.listen(3000, "0.0.0.0", () => {
+  console.log("Servidor corriendo en puerto 3000 (Escuchando en todas las interfaces)");
 });

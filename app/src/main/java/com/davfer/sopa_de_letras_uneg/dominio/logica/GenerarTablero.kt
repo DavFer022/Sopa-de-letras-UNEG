@@ -55,10 +55,12 @@ class BoardGenerator {
         // 3. Rellenar espacios vacíos y construir el objeto Board final
         val finalCells = List(size) { row ->
             List(size) { col ->
-                val char = tempGrid[row][col] ?: ('A'..'Z').random()
+                val charInGrid = tempGrid[row][col]
+                val char = charInGrid ?: ('A'..'Z').random()
                 Celda(
                     coordenada = Coordenada(row, col),
-                    letra = char
+                    letra = char,
+                    isPartOfWord = charInGrid != null // Si estaba en tempGrid, es parte de una palabra
                 )
             }
         }

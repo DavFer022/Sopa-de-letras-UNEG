@@ -15,7 +15,10 @@ data class GameStatus(
     val turnoActual: String? = null,                                         // ID del jugador actual
     val tiempoPorTurno: Int = 10,                                            // Configuración: Segundos por turno
     val tiempoRestanteTurno: Int = 10,                                       // Estado: Cuenta regresiva del turno
-    val censuraActiva: Boolean = false                                       // Configuración: ¿Ocultar tablero?
+    val censuraActiva: Boolean = false,                                       // Configuración: ¿Ocultar tablero?
+    val revelarRespuestas: Boolean = false,                                  // Configuración: ¿Mostrar solo la solución?
+    val categoria: String = "INFORMATICA",                                   // Categoría de las palabras
+    val isEmpate: Boolean = false                                            // Indica si la partida terminó empatada
 )
 
 enum class EstadosJuego{ CARGANDO, JUGANDO, TERMINADO }

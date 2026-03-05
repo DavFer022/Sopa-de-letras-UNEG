@@ -1,6 +1,5 @@
 package com.davfer.sopa_de_letras_uneg.dominio.models
 
-import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.Serializable
 
 @Serializable

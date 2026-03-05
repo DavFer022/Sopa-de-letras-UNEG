@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended:1.7.8") // Añadido para Visibility/VisibilityOff
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.socket.io.client)
     implementation(libs.androidx.navigation.compose)

@@ -7,5 +7,6 @@ data class Celda(
     val coordenada: Coordenada,
     val letra: Char,
     val isFound: Boolean = false,                   // ¿Ya es parte de una palabra encontrada?
-    val encontradoPorJugadorID: String? = null      // ¿Quién la encontró? (Para pintarla de su color)
+    val encontradoPorJugadorID: String? = null,     // ¿Quién la encontró?
+    val isPartOfWord: Boolean = false               // ¿Es parte de una de las palabras a buscar? (Fines académicos)
 )
