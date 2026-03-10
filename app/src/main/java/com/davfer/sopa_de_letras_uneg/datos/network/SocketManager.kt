@@ -11,9 +11,10 @@ import org.json.JSONObject
 object SocketManager {
     private var socket: Socket? = null
 
-    // IP del PC donde corre el servidor Node.js
-    private const val BASE_URL = "http://192.168.0.107:3000"
-
+    /* IP del PC donde corre el servidor Node.js
+    //Con Wifi, Ip de la laptop "http://192.168.0.107:3000"
+    //Con el telefono 10.25.119.88:3000*/
+    private const val BASE_URL =  "http://10.25.119.88:3000"
     fun connect() {
         if (socket != null && socket!!.connected()) {
             Log.d("APP_DEBUG_SocketManager", "Ya estamos conectados.")
